@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zumo Control</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; touch-action: manipulation; }
+        
+        /* Velocímetro Circular */
+        .gauge {
+            width: 200px; height: 200px; border-radius: 50%;
+            background: conic-gradient(#00ff88 var(--progress), #333 0deg);
+            display: flex; align-items: center; justify-content: center;
+            margin: 20px auto; position: relative;
+        }
+        .gauge::before {
+            content: ""; position: absolute; width: 170px; height: 170px;
+            background: #1a1a1a; border-radius: 50%;
+        }
+        .gauge-text { position: relative; font-size: 2.5em; font-weight: bold; }
+
+        /* Controles */
+        .controls { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        button { padding: 20px 40px; font-size: 1.2em; border-radius: 10px; border: none; cursor: pointer; }
+        .btn-acc { background: #00ff88; color: black; }
+        .btn-brake { background: #ff4444; color: white; }
+        
+        input[type=range] { width: 80%; height: 50px; }
+    </style>
+</head>
+<body>
+
+    <h1>Zumo Commander</h1>
+
+    <div class="gauge" id="speedGauge" style="--progress: 0deg;">
+        <div class="gauge-text"><span id="speedVal">0</span>%</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-acc" onmousedown="changeSpeed(10)" onmouseup="stopChange()" ontouchstart="changeSpeed(10)" ontouchend="stopChange()">ACELERAR</button>
+        <button class="btn-brake" onclick="emergencyBrake()">FRENADO EMERGENCIA</button>
+        
+        <p>Volante (Giro)</p>
+        <input type="range" id="steerWheel" min="-100" max="100" value="0" oninput="sendData()">
+    </div>
+
+    <script>
+        let speed = 0;
+        let timer = null;
+
+        function changeSpeed(delta) {
+            timer = setInterval(() => {
+                speed = Math.min(100, Math.max(0, speed + delta));
+                updateUI();
+                sendData();
+            }, 100);
+        }
+
+        function stopChange() { clearInterval(timer); }
+
+        function emergencyBrake() {
+            speed = 0;
+            updateUI();
+            sendData();
+        }
+
+        function updateUI() {
+            document.getElementById('speedVal').innerText = speed;
+            // Convertimos 0-100% a 0-360 grados para el CSS
+            document.getElementById('speedGauge').style.setProperty('--progress', (speed * 3.6) + 'deg');
+        }
+
+        function sendData() {
+            const steer = document.getElementById('steerWheel').value;
+            
+            // Petición POST a tu servidor Flask
+            fetch('/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({v: speed, s: parseInt(steer)})
+            });
+        }
+    </script>
+</body>
+</html>
