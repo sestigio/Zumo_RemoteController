@@ -3,84 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zumo Control</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; touch-action: manipulation; }
-        
-        /* Velocímetro Circular */
-        .gauge {
-            width: 200px; height: 200px; border-radius: 50%;
-            background: conic-gradient(#00ff88 var(--progress), #333 0deg);
-            display: flex; align-items: center; justify-content: center;
-            margin: 20px auto; position: relative;
-        }
-        .gauge::before {
-            content: ""; position: absolute; width: 170px; height: 170px;
-            background: #1a1a1a; border-radius: 50%;
-        }
-        .gauge-text { position: relative; font-size: 2.5em; font-weight: bold; }
-
-        /* Controles */
-        .controls { display: flex; flex-direction: column; gap: 20px; align-items: center; }
-        button { padding: 20px 40px; font-size: 1.2em; border-radius: 10px; border: none; cursor: pointer; }
-        .btn-acc { background: #00ff88; color: black; }
-        .btn-brake { background: #ff4444; color: white; }
-        
-        input[type=range] { width: 80%; height: 50px; }
-    </style>
+    <title>Zumo Cockpit</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <h1>Zumo Commander</h1>
+    <div class="dashboard">
+        <div class="box gauge-box">
+            <div class="gauge" id="speedGauge" style="--progress: 0deg;">
+                <div class="gauge-text"><span id="speedVal">0</span>%</div>
+            </div>
+        </div>
 
-    <div class="gauge" id="speedGauge" style="--progress: 0deg;">
-        <div class="gauge-text"><span id="speedVal">0</span>%</div>
-    </div>
+        <div class="box status-box">
+            <div class="radar-placeholder"></div>
+            <div class="lights-container">
+                <div class="light-group">
+                    <div class="led" id="L1"></div>
+                    <span>light 1</span>
+                </div>
+                <div class="light-group">
+                    <div class="led" id="L2"></div>
+                    <span>light 2</span>
+                </div>
+                <div class="light-group">
+                    <div class="led" id="L3"></div>
+                    <span>light 3</span>
+                </div>
+            </div>
+        </div>
 
-    <div class="controls">
-        <button class="btn-acc" onmousedown="changeSpeed(10)" onmouseup="stopChange()" ontouchstart="changeSpeed(10)" ontouchend="stopChange()">ACELERAR</button>
-        <button class="btn-brake" onclick="emergencyBrake()">FRENADO EMERGENCIA</button>
-        
-        <p>Volante (Giro)</p>
-        <input type="range" id="steerWheel" min="-100" max="100" value="0" oninput="sendData()">
+        <div class="box pedal-box">
+            <button class="pedal btn-brake" onmousedown="send('BRAKE_ON')" onmouseup="send('BRAKE_OFF')">BRAKE</button>
+            <button class="pedal btn-acc" onmousedown="send('ACC_ON')" onmouseup="send('ACC_OFF')">ACCEL</button>
+        </div>
+
+        <div class="box steer-box">
+            <input type="range" id="steerWheel" min="-100" max="100" value="0" oninput="sendSteer(this.value)">
+            <div class="label">Volante (Giro)</div>
+        </div>
+
+        <div class="box extra-box">
+            </div>
     </div>
 
     <script>
-        let speed = 0;
-        let timer = null;
+        let lastTime_pedal = 0;
+        let lastTime_steer = 0;
+        const throttleMS = 100; // Solo enviamos datos cada 100ms
 
-        function changeSpeed(delta) {
-            timer = setInterval(() => {
-                speed = Math.min(100, Math.max(0, speed + delta));
-                updateUI();
-                sendData();
-            }, 100);
-        }
+        function send(cmd) {
+            const now = Date.now();
+    
+            // Si ha pasado menos tiempo que throttleMS, no hacemos nada
+            if (now - lastTime_pedal < throttleMS) return;
 
-        function stopChange() { clearInterval(timer); }
+            lastTime_pedal = now;
 
-        function emergencyBrake() {
-            speed = 0;
-            updateUI();
-            sendData();
-        }
-
-        function updateUI() {
-            document.getElementById('speedVal').innerText = speed;
-            // Convertimos 0-100% a 0-360 grados para el CSS
-            document.getElementById('speedGauge').style.setProperty('--progress', (speed * 3.6) + 'deg');
-        }
-
-        function sendData() {
-            const steer = document.getElementById('steerWheel').value;
-            
-            // Petición POST a tu servidor Flask
-            fetch('/update', {
+            fetch('/pedals', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({v: speed, s: parseInt(steer)})
+                body: JSON.stringify({ cmd: cmd })
             });
         }
+
+        function sendSteer(val) {
+            const now = Date.now();
+    
+            // Si ha pasado menos tiempo que throttleMS, no hacemos nada
+            if (now - lastTime_steer < throttleMS) return;
+
+            lastTime_steer = now;
+
+            fetch('/steer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ s: parseInt(val) })
+            });
+        }
+
+        function updateDashboard() {
+            fetch('/get_telemetry')
+            .then(response => response.json())
+            .then(data => {
+                const vReal = data.velocidad_real;
+                
+                // 1. Actualizar el texto del porcentaje
+                document.getElementById('speedVal').innerText = vReal;
+                
+                // 2. Actualizar la barra circular (conic-gradient)
+                // Multiplicamos por 3.6 porque 100% = 360 grados
+                const degrees = vReal * 3.6;
+                document.getElementById('speedGauge').style.setProperty('--progress', `${degrees}deg`);
+            })
+        .catch(err => console.error("Error obteniendo telemetría:", err));
+        }
+
+        // Lo ejecutamos cada 100ms
+        setInterval(updateDashboard, 100);
     </script>
 </body>
 </html>

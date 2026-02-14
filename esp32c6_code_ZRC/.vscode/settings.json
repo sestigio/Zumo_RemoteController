@@ -3,7 +3,7 @@
   "idf.openOcdConfigs": [
     "board/esp32c6-builtin.cfg"
   ],
-  "idf.portWin": "detect",
+  "idf.portWin": "COM20",
   "idf.currentSetup": "C:\\Users\\puesa\\esp\\v5.5.2\\esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32c6"
@@ -13,5 +13,6 @@
     "--background-index",
     "--query-driver=**",
     "--compile-commands-dir=c:\\Users\\puesa\\Proyectos\\Zumo_RemoteController\\esp32c6_code_ZRC\\build"
-  ]
+  ],
+  "idf.flashType": "UART"
 }

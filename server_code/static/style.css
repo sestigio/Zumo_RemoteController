@@ -1,0 +1,86 @@
+/* Configuración Base */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { 
+    background: #121212; 
+    color: white; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Grid Principal (Horizontal) */
+.dashboard {
+    display: grid;
+    grid-template-columns: 1.2fr 1.5fr 1.2fr; /* 3 columnas */
+    grid-template-rows: 2fr 1fr;           /* 2 filas */
+    gap: 10px;
+    width: 95vw;
+    height: 90vh;
+}
+
+.box {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+}
+
+/* Box Específicos */
+.steer-box { grid-column: span 2; } /* El slider ocupa 2 columnas */
+
+/* Velocímetro */
+.gauge {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: conic-gradient(#00ff88 var(--progress), #333 0deg);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+}
+.gauge::before {
+    content: ""; position: absolute; width: 120px; height: 120px;
+    background: #1e1e1e; border-radius: 50%;
+}
+.gauge-text { position: relative; font-size: 1.8em; font-weight: bold; }
+
+/* Luces de Estado */
+.lights-container {
+    display: flex; gap: 20px; margin-top: 15px;
+}
+.light-group { text-align: center; font-size: 0.7em; color: #888; }
+.led {
+    width: 15px; height: 15px; background: #444; 
+    border-radius: 50%; margin-bottom: 5px;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+}
+#L2 { background: #00ff88; box-shadow: 0 0 10px #00ff88; } /* Ejemplo encendida */
+
+/* Pedales (Más altos que anchos) */
+.pedal-box { flex-direction: row; gap: 15px; }
+.pedal {
+    width: 70px;
+    height: 140px;
+    border-radius: 15px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+.pedal:active { transform: scale(0.95); }
+.btn-brake { background: #ff4444; color: white; }
+.btn-acc { background: #00ff88; color: black; }
+
+/* Slider Volante */
+input[type=range] {
+    width: 90%;
+    height: 40px;
+    accent-color: #00ff88;
+}
+.label { margin-top: 5px; font-size: 0.9em; color: #aaa; }

@@ -5,8 +5,11 @@ class MQTTBridge:
         self.client = mqtt.Client()
         self.broker = broker
         self.port = port
-        self.topic_control = "zumo/comandos"
+        self.topic_command = "zumo/comandos"
         self.topic_telemetria = "zumo/telemetria"
+
+        # Variable para almacenar la velocidad que viene del Zumo
+        self.velocidad_real = 0
 
     def connect(self):
         try:
@@ -23,11 +26,17 @@ class MQTTBridge:
         self.client.subscribe(self.topic_telemetria)
 
     def on_message(self, client, userdata, msg):
-        # Aquí procesaremos lo que el Zumo nos envíe (sensores, batería, etc.)
-        print(f"🤖 Zumo dice: {msg.payload.decode()}")
+        payload = msg.payload.decode()
+        # Esperamos que el Zumo envíe algo como "VR:45" (Velocidad Real)
+        if payload.startswith("VR:"):
+            try:
+                self.velocidad_real = int(payload.split(":")[1])
+                print(f"📈 Telemetría recibida: {self.velocidad_real} km/h")
+            except ValueError:
+                pass
 
     def enviar_comando(self, comando):
-        self.client.publish(self.topic_control, comando)
+        self.client.publish(self.topic_command, comando)
         print(f"📤 Comando enviado: {comando}")
 
 # Instancia global para ser importada

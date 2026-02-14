@@ -13,18 +13,36 @@ def index():
     # Esta función busca el archivo index.html dentro de la carpeta /templates/
     return render_template('index.html')
 
-@app.route('/update', methods=['POST'])
-def update_robot():
-    # Recibimos un JSON con {v: velocidad, s: steering}
+# RUTA PARA PEDALES (Acelerar / Frenar)
+@app.route('/pedals', methods=['POST'])
+def control_pedals():
     data = request.json
-    v = data.get('v', 0)
-    s = data.get('s', 0)
+    comando = data.get('cmd') # 'accel', 'brake', 'stop'...
     
-    # Enviamos un mensaje compacto al Zumo: "V:50,S:-10"
-    mensaje = f"V:{v},S:{s}"
-    bridge.enviar_comando(mensaje)
+    # Enviamos al Zumo con un prefijo para que sepa qué es
+    # Ejemplo: "P:accel"
+    bridge.enviar_comando(f"P:{comando}")
     
-    return jsonify({"status": "sent", "data": mensaje})
+    return jsonify({"status": "ok", "type": "pedal", "val": comando})
+
+# RUTA PARA DIRECCIÓN (Giro del volante)
+@app.route('/steer', methods=['POST'])
+def control_steer():
+    data = request.json
+    giro = data.get('s', 0) # Valor entre -100 y 100
+    
+    # Enviamos al Zumo con prefijo de Steering
+    # Ejemplo: "S:45"
+    bridge.enviar_comando(f"S:{giro}")
+    
+    return jsonify({"status": "ok", "type": "steer", "val": giro})
+
+# RUTA PARA RECUPERAR VELOCIDAD (Telemetría)
+@app.route('/get_telemetry', methods=['GET'])
+def get_telemetry():
+    return jsonify({
+        "velocidad_real": bridge.velocidad_real
+    })
 
 if __name__ == '__main__':
     # host='0.0.0.0' para que el móvil pueda acceder vía IP
