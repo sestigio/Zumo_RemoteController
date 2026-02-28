@@ -34,8 +34,8 @@
         </div>
 
         <div class="box pedal-box">
-            <button class="pedal btn-brake" onmousedown="send('BRAKE_ON')" onmouseup="send('BRAKE_OFF')">BRAKE</button>
-            <button class="pedal btn-acc" onmousedown="send('ACC_ON')" onmouseup="send('ACC_OFF')">ACCEL</button>
+            <button id="btn-frenar" class="pedal btn-brake">BRAKE</button>
+            <button id="btn-acelerar" class="pedal btn-acc">ACCEL</button>
         </div>
 
         <div class="box steer-box">
@@ -50,16 +50,17 @@
     <script>
         let lastTime_pedal = 0;
         let lastTime_steer = 0;
-        const throttleMS = 100; // Solo enviamos datos cada 100ms
+        let throttleTimer = null;
+        let lastValue_steer = null;
+        let steerController = null; // El mando a distancia para cancelar
+        const throttleMS = 300; // Solo enviamos datos cada 100ms
+        let pedalState = "STOP"; // Puede ser "ACC_ON", "BRAKE_ON" o "STOP"
 
+        // Modificamos send para que sea una función interna pura
         function send(cmd) {
-            const now = Date.now();
-    
-            // Si ha pasado menos tiempo que throttleMS, no hacemos nada
-            if (now - lastTime_pedal < throttleMS) return;
-
-            lastTime_pedal = now;
-
+            // Nota: Aquí quitamos el throttle manual del Date.now() 
+            // porque para "soltar" el pedal (OFF) necesitamos que sea instantáneo
+            // y no sea bloqueado por el throttle de "pulsar".
             fetch('/pedals', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -67,19 +68,73 @@
             });
         }
 
-        function sendSteer(val) {
-            const now = Date.now();
-    
-            // Si ha pasado menos tiempo que throttleMS, no hacemos nada
-            if (now - lastTime_steer < throttleMS) return;
+        // --- NUEVA LÓGICA DE CONTROL DE PEDALES ---
+        function setupPedal(buttonId, onCmd, offCmd) {
+            const btn = document.getElementById(buttonId);
+            if (!btn) return;
 
-            lastTime_steer = now;
+            // Al pulsar (Móvil y PC)
+            const startAction = (e) => {
+                e.preventDefault(); // EVITA el scroll y el menú contextual
+                pedalState = onCmd;
+            };
 
-            fetch('/steer', {
+            // Al soltar (Móvil y PC)
+            const stopAction = (e) => {
+                e.preventDefault();
+                pedalState = "STOP";
+            };
+
+            // Eventos de Móvil (Touch)
+            btn.addEventListener('touchstart', startAction, {passive: false});
+            btn.addEventListener('touchend', stopAction, {passive: false});
+            btn.addEventListener('touchcancel', stopAction, {passive: false}); // <--- CRÍTICO para el móvil
+
+            // Eventos de PC (Mouse) por si acaso
+            btn.addEventListener('mousedown', startAction);
+            btn.addEventListener('mouseup', stopAction);
+            btn.addEventListener('mouseleave', stopAction); // Por si sacas el ratón del botón
+        }
+
+        function loopEnvioPedales() {
+            // Enviamos el estado actual (sea cual sea) al servidor
+            fetch('/pedals', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ s: parseInt(val) })
-            });
+                body: JSON.stringify({ cmd: pedalState })
+            }).catch(err => console.error("Error en envío constante:", err));
+        }
+
+        // Iniciamos el bucle (100ms es un buen equilibrio entre fluidez y carga de red)
+        setInterval(loopEnvioPedales, 100);
+
+        function sendSteer(val) {
+            lastValue_steer = val;
+            if (throttleTimer) return;
+
+            throttleTimer = setTimeout(() => {
+                // 1. Si hay una petición pendiente, la abortamos (la saltamos)
+                if (steerController) {
+                    steerController.abort();
+                }
+                
+                // 2. Creamos un nuevo controlador para esta petición
+                steerController = new AbortController();
+                const signal = steerController.signal;
+
+                fetch('/steer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ s: parseInt(lastValue_steer) }),
+                    signal: signal // Le pasamos la señal de cancelación
+                }).catch(err => {
+                    if (err.name === 'AbortError') {
+                        // Silencio, es una cancelación normal porque llegó un dato más nuevo
+                    }
+                });
+
+                throttleTimer = null;
+            }, throttleMS);
         }
 
         function updateDashboard() {
@@ -93,14 +148,19 @@
                 
                 // 2. Actualizar la barra circular (conic-gradient)
                 // Multiplicamos por 3.6 porque 100% = 360 grados
-                const degrees = vReal * 3.6;
+                const degrees = vReal * 3.6 / 400;
                 document.getElementById('speedGauge').style.setProperty('--progress', `${degrees}deg`);
             })
         .catch(err => console.error("Error obteniendo telemetría:", err));
         }
 
-        // Lo ejecutamos cada 100ms
-        setInterval(updateDashboard, 100);
+        // INICIALIZACIÓN: Configuramos los botones al cargar la página
+        window.onload = () => {
+            setupPedal('btn-acelerar', 'ACC_ON');// 'ACC_OFF');
+            setupPedal('btn-frenar', 'BRAKE_ON');// 'BRAKE_OFF');
+            
+            setInterval(updateDashboard, 200);
+        };
     </script>
 </body>
 </html>

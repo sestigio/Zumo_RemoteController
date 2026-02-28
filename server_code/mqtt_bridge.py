@@ -1,4 +1,5 @@
 import paho.mqtt.client as mqtt
+import socket
 
 class MQTTBridge:
     def __init__(self, broker="localhost", port=1883):
@@ -16,6 +17,13 @@ class MQTTBridge:
             self.client.on_connect = self.on_connect
             self.client.on_message = self.on_message
             self.client.connect(self.broker, self.port, 60)
+
+            # # --- OPTIMIZACIÓN DE SOCKET ---
+            # # Desactivamos el retraso de Nagle para control en tiempo real
+            # sock = self.client.socket()
+            # if sock:
+            #     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
             self.client.loop_start()
             print(f"✅ MQTT: Conectado a {self.broker}")
         except Exception as e:
@@ -36,7 +44,7 @@ class MQTTBridge:
                 pass
 
     def enviar_comando(self, comando):
-        self.client.publish(self.topic_command, comando)
+        self.client.publish(self.topic_command, comando, qos=0)
         print(f"📤 Comando enviado: {comando}")
 
 # Instancia global para ser importada

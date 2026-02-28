@@ -1,5 +1,10 @@
-/* Configuración Base */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Configuración Base Actualizada */
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    -webkit-touch-callout: none; /* Bloquea el menú de "Guardar imagen" al mantener pulsado */
+}
 
 body { 
     background: #121212; 
@@ -72,6 +77,12 @@ body {
     font-weight: bold;
     cursor: pointer;
     transition: transform 0.1s;
+
+    /* --- ESTO ES LO NUEVO PARA MÓVIL --- */
+    -webkit-tap-highlight-color: transparent; /* Quita el recuadro azul al tocar */
+    -webkit-user-select: none;                /* Evita selección de texto */
+    user-select: none;                         /* Evita selección de texto */
+    touch-action: none;                        /* ¡CRÍTICO! Evita que el navegador haga scroll o zoom al tocar el pedal */
 }
 .pedal:active { transform: scale(0.95); }
 .btn-brake { background: #ff4444; color: white; }

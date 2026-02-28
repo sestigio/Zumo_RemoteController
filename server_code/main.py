@@ -18,11 +18,13 @@ def index():
 def control_pedals():
     data = request.json
     comando = data.get('cmd') # 'accel', 'brake', 'stop'...
-    
+
     # Enviamos al Zumo con un prefijo para que sepa qué es
     # Ejemplo: "P:accel"
     bridge.enviar_comando(f"P:{comando}")
-    
+
+   
+
     return jsonify({"status": "ok", "type": "pedal", "val": comando})
 
 # RUTA PARA DIRECCIÓN (Giro del volante)
@@ -30,11 +32,11 @@ def control_pedals():
 def control_steer():
     data = request.json
     giro = data.get('s', 0) # Valor entre -100 y 100
-    
+
     # Enviamos al Zumo con prefijo de Steering
     # Ejemplo: "S:45"
     bridge.enviar_comando(f"S:{giro}")
-    
+
     return jsonify({"status": "ok", "type": "steer", "val": giro})
 
 # RUTA PARA RECUPERAR VELOCIDAD (Telemetría)
@@ -46,4 +48,4 @@ def get_telemetry():
 
 if __name__ == '__main__':
     # host='0.0.0.0' para que el móvil pueda acceder vía IP
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False) 
