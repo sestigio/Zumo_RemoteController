@@ -75,13 +75,12 @@ void uart_rx_task(void *arg) {
                 xQueueSend(zumo_queue, &mensaje_para_cola, 0);
             }
             
-            // 2. Detección de OBJETOS (OI:1 o OD:0)
-            else if (msg[0] == 'O' && (msg[1] == 'I' || msg[1] == 'D')) {
-                char lado = msg[1]; // 'I' o 'D'
-                int detectado = atoi(&msg[3]); // El valor después del ':'
+            // 2. Detección de VACÍO
+            else if (msg[0] == 'O') {
+                bool detectado = (msg[2] == '1'); // '1' o '0' para indicar si se detecta vacío
 
-                if (detectado == 1) {
-                    ESP_LOGW(TAG, "¡Objeto detectado a la %s!", (lado == 'I' ? "IZQUIERDA" : "DERECHA"));
+                if (detectado) {
+                    ESP_LOGW(TAG, "¡Vacío detectado!");
                 }
                 
                 // Enviamos el estado del objeto a la nube para telemetría

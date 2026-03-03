@@ -11,8 +11,7 @@
     <div class="dashboard">
         <div class="box gauge-box">
             <div class="gauge" id="speedGauge" style="--progress: 0deg;">
-                <div class="gauge-text"><span id="speedVal">0</span>%</div>
-            </div>
+                <div class="gauge-text"><span id="speedVal">0</span></div> </div>
         </div>
 
         <div class="box status-box">
@@ -20,15 +19,15 @@
             <div class="lights-container">
                 <div class="light-group">
                     <div class="led" id="L1"></div>
-                    <span>light 1</span>
+                    <span>      </span>
                 </div>
                 <div class="light-group">
                     <div class="led" id="L2"></div>
-                    <span>light 2</span>
+                    <span>SUELO OK</span>
                 </div>
                 <div class="light-group">
                     <div class="led" id="L3"></div>
-                    <span>light 3</span>
+                    <span>       </span>
                 </div>
             </div>
         </div>
@@ -44,7 +43,8 @@
         </div>
 
         <div class="box extra-box">
-            </div>
+            <span style="font-size: 0.7em; color: #555;">Zumo Remote Controller by APR</span>
+        </div>
     </div>
 
     <script>
@@ -150,6 +150,20 @@
                 // Multiplicamos por 3.6 porque 100% = 360 grados
                 const degrees = vReal * 3.6 / 400;
                 document.getElementById('speedGauge').style.setProperty('--progress', `${degrees}deg`);
+
+                // 2. Actualizar Light 2 (Indicador de Vacío)
+                const ledL2 = document.getElementById('L2');
+                const labelL2 = ledL2.nextElementSibling; // El <span> debajo del led
+
+                if (data.vacio) {
+                    ledL2.classList.add('led-danger');
+                    labelL2.classList.add('text-danger');
+                    labelL2.innerText = "PELIGRO VACÍO";
+                } else {
+                    ledL2.classList.remove('led-danger');
+                    labelL2.classList.remove('text-danger');
+                    labelL2.innerText = "SUELO OK";
+                }
             })
         .catch(err => console.error("Error obteniendo telemetría:", err));
         }

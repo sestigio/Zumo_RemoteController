@@ -43,7 +43,8 @@ def control_steer():
 @app.route('/get_telemetry', methods=['GET'])
 def get_telemetry():
     return jsonify({
-        "velocidad_real": bridge.velocidad_real
+        "velocidad_real": bridge.velocidad_real,
+        "vacio": bridge.modo_vacio
     })
 
 if __name__ == '__main__':

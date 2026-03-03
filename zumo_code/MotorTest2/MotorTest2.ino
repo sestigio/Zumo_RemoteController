@@ -1,25 +1,19 @@
+/* This example drives Zumo forward and backward and allows steering.  The yellow user LED is on when Zumo is accelerating and the red
+when it is decelerating.
+If a motor on your Zumo has been flipped, you can correct its
+direction by uncommenting the call to flipLeftMotor() or
+flipRightMotor() in the setup() function. */
+
 #include <Wire.h>
 #include <Zumo32U4.h>
 
 Zumo32U4Motors motors;
 Zumo32U4ButtonC buttonC;
-Zumo32U4Buzzer buzzer;
-Zumo32U4LineSensors lineSensors;
 
-#define NUM_SENSORS 5
-uint16_t lineSensorValues[NUM_SENSORS];
-const uint16_t lineSensor0Threshold = 1100;
-const uint16_t lineSensor1Threshold = 800;
-const uint16_t lineSensor2Threshold = 950;
-const uint16_t lineSensor3Threshold = 1100;
-const uint16_t lineSensor4Threshold = 1100;
-
-//bool useEmitters = true;
-
-const int MAX_SPEED = 300; // El Zumo 32U4 acepta valores de -400 a 400
+const int MAX_SPEED = 400; // El Zumo 32U4 acepta valores de -400 a 400
 const float ALFA_VELOCIDAD = 0.03;
 const float ALFA_GIRO = 0.1; // Para suavizar cambios bruscos en el giro
-const float COEF_GIRO = 1.5; // Cuánto afecta el giro a la diferencia entre ruedas
+const float COEF_GIRO = 2.0;
 
 const unsigned long INTERVALO_TELEMETRIA = 300; // 100ms = 10 Hz (suficiente para gráficas)
 
@@ -31,10 +25,9 @@ struct RobotState {
     float velocidad_actual;         // Velocidad actual suavizada
     bool pedalAcel;      // Estado del acelerador
     bool pedalFreno;     // Estado del freno
-    bool modo_vacio;     // Si se detecta vacío por los sensores de línea
     unsigned long ultimoEnvioTelemetria; // Para controlar el tiempo
     unsigned long ultimoComandoRecibido; // Para seguridad (timeout)
-  } g_zumo = {0.0, 0.0, 0.0, 0.0, false, false, false, 0, 0}; // Instancia única global
+  } g_zumo = {0.0, 0.0, false, false, 0, 0}; // Instancia única global
 
 void setup()
 {
@@ -43,10 +36,6 @@ void setup()
   //motors.flipRightMotor(true);
   Serial.begin(9600);
   Serial1.begin(9600);
-  Serial1.setTimeout(10);
-  ledRed(1);
-
-  lineSensors.initFiveSensors();
 
   // Wait for the user to press button C.
   buttonC.waitForButton();
@@ -97,33 +86,6 @@ void procesar_comando(String comando) {
   }
 }
 
-void procesamiento_sensores_linea() {
-  static uint16_t lastSampleTime = 0;
-
-  if ((uint16_t)(millis() - lastSampleTime) >= 100) {
-    lastSampleTime = millis();
-    lineSensors.read(lineSensorValues, QTR_EMITTERS_ON);
-
-    if (lineSensorValues[0] > lineSensor0Threshold || 
-        lineSensorValues[1] > lineSensor1Threshold || 
-        lineSensorValues[2] > lineSensor2Threshold || 
-        lineSensorValues[3] > lineSensor3Threshold || 
-        lineSensorValues[4] > lineSensor4Threshold) {
-
-      if (!g_zumo.modo_vacio) { // Solo si no estábamos ya en modo vacío
-      Serial.println("Vacío detectado, activando modo de seguridad.");
-      g_zumo.modo_vacio = true;
-      // PARADA DE EMERGENCIA INSTANTÁNEA
-      motors.setSpeeds(0, 0);
-      g_zumo.velocidad_actual = 0;   // Matamos la inercia del filtro
-      g_zumo.velocidad_objetivo = 0; // Evitamos que quiera seguir avanzando
-      g_zumo.giro_actual = 0;       // Matamos la inercia del filtro
-      g_zumo.giro_objetivo = 0;     // Evitamos que quiera seguir girando
-      }
-    }
-  }
-} 
-
 void actualizar_motores() {
   // Seguridad: Si no hay noticias de la ESP32 hace más de 500ms, PARADA TOTAL
     if (millis() - g_zumo.ultimoComandoRecibido > 2000) {
@@ -165,6 +127,9 @@ void enviar_telemetria() {
         Serial1.print("VR:"); // Usamos VR para que tu Python lo reconozca
         Serial1.println(velocidad_a_enviar);
 
+        Serial.print("VR:"); // Usamos VR para que tu Python lo reconozca
+        Serial.println(velocidad_a_enviar);
+
         Serial.print("Estado accel: ");
         Serial.println(g_zumo.pedalAcel);
 
@@ -174,19 +139,13 @@ void enviar_telemetria() {
         Serial.print("Giro: ");
         Serial.println(g_zumo.giro_actual);
 
-        Serial.print("Sensores línea: ");
-        for (int i = 0; i < NUM_SENSORS; i++) {
-            Serial.print(lineSensorValues[i]);
-            Serial.print(", ");
-        }
-        Serial.println(); // Nueva línea al final
-
         // Actualizamos el cronómetro
         g_zumo.ultimoEnvioTelemetria = tiempoActual;
     }
 }
 
-void operacion_nominal() {
+void loop()
+{
   // 1. Comprobar si hay comando de la ESP32 y procesarlo
     if (Serial1.available() > 0) {
         String comando = Serial1.readStringUntil('\n');
@@ -195,65 +154,11 @@ void operacion_nominal() {
         //actualizar_motores();
     }
 
-  // Leer sensores de línea
-  procesamiento_sensores_linea();
-
   // 2. Aplicar la lógica de control para actualizar motores
   actualizar_motores();
 
   // 3. Enviar datos de vuelta (Solo cuando toque, ej. 10 Hz)
   enviar_telemetria();
-}
-
-void operacion_vacio() {
-
-  ledRed(1); // Luz roja encendida para indicar modo vacío
-  enviar_telemetria();
-  Serial1.print("O:");
-  Serial1.println(g_zumo.modo_vacio ? "1" : "0");
-
-  // Start playing a tone with frequency 440 Hz at maximum
-  // volume (15) for 200 milliseconds fime times intermitently.
-  buzzer.playFrequency(440, 200, 10);
-  delay(400); // 200ms de pausa real para que se escuche el tono intermitente
-  buzzer.playFrequency(440, 200, 10);
-  delay(400); // 200ms de pausa
-  buzzer.playFrequency(440, 200, 10);
-  delay(400); // 200ms de pausa
-  buzzer.playFrequency(440, 200, 10);
-  delay(400); // 200ms de pausa
-
-  for (int i = 0; i < 80; i++) {
-    motors.setSpeeds(-i, -i); // Retrocede suavemente
-    delay(5);
-  }
-  
-  delay(500); // Espera un segundo antes de intentar avanzar
-  buzzer.playFrequency(600, 500, 9);
-  delay(1000); // 500ms de pausa real para que se escuche el tono intermitente
-  buzzer.playFrequency(600, 500, 9);
-  delay(1000); // 500ms de pausa
-  buzzer.playFrequency(600, 500, 9);
-  delay(1000); // 500ms de pausa
-  buzzer.playFrequency(600, 500, 9);
-  delay(1000); // 500ms de pausa
-
-  for (int i = 80; i > 0; i--) {
-    motors.setSpeeds(-i, -i); // Detiene el retroceso suavemente
-    delay(5);
-  }
-
-  delay(500);
-  while(Serial1.available()) Serial1.read(); // Limpiamos el buffer para evitar comandos antiguos
-  g_zumo.modo_vacio = false; // Salimos del modo vacío para volver a la operación normal
-}
-void loop()
-{
-  operacion_nominal();
-
-  if (g_zumo.modo_vacio) {
-    operacion_vacio();
-  }
 
   delay(10); // Mantiene el loop a ~100Hz
 }

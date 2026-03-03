@@ -11,6 +11,7 @@ class MQTTBridge:
 
         # Variable para almacenar la velocidad que viene del Zumo
         self.velocidad_real = 0
+        self.modo_vacio = False
 
     def connect(self):
         try:
@@ -42,6 +43,12 @@ class MQTTBridge:
                 print(f"📈 Telemetría recibida: {self.velocidad_real} km/h")
             except ValueError:
                 pass
+        
+        # Detección de Vacío (O:1 o O:0)
+        elif payload.startswith("O:"):
+            self.modo_vacio = (payload.split(":")[1] == "1")
+            if self.modo_vacio:
+                print("Aviso de vacío recibido")
 
     def enviar_comando(self, comando):
         self.client.publish(self.topic_command, comando, qos=0)
